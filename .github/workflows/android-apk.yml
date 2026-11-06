@@ -26,7 +26,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - uses: android-actions/setup-android@v3
       - name: Restore preserved MT Photos source
         shell: bash
         run: |
@@ -66,7 +65,9 @@ jobs:
           javac -d /tmp/mt-tests app/src/main/java/com/emily/mtphotos/FaceMatching.java tests/FaceMatchingTest.java
           java -cp /tmp/mt-tests com.emily.mtphotos.FaceMatchingTest
       - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Assemble APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Upload downloadable debug APK

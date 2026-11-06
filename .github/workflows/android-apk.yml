@@ -41,6 +41,8 @@ jobs:
                       raise ValueError('Unsafe archive path')
               archive.extractall(root, filter='data')
           PY
+      - name: Show Merge People on the main People screen
+        run: python3 scripts/add-merge-ui.py
       - name: Download licensed offline face models
         shell: bash
         run: |

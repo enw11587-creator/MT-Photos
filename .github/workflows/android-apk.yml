@@ -49,7 +49,7 @@ jobs:
           source='https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/'
           models=[
             ('yunet.onnx','face_detection_yunet/face_detection_yunet_2023mar.onnx','0b6ceccb83e3d6cb38ae9a92499469937eb210e0267f26f7e68c5a13b53818c3'),
-            ('sface.onnx','face_recognition_sface/face_recognition_sface_2021dec_int8.onnx','2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a')]
+            ('sface.onnx','face_recognition_sface/face_recognition_sface_2021dec_int8.onnx','6430b2c142fbfa1b741f9e13f01b53c92b88fbc438221968cde6e3e9906a5798')]
           destination=pathlib.Path('app/src/main/assets')
           destination.mkdir(parents=True,exist_ok=True)
           for name,path,expected in models:

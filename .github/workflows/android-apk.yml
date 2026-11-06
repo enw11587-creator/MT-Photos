@@ -1,0 +1,73 @@
+name: Build MT Photos APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - uses: android-actions/setup-android@v3
+      - name: Restore preserved MT Photos source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, brotli, io, tarfile
+          from pathlib import Path
+          payload = base64.b64decode(Path('.bundle/source.tar.br.b64').read_text().strip())
+          with tarfile.open(fileobj=io.BytesIO(brotli.decompress(payload))) as archive:
+              root = Path('.').resolve()
+              for item in archive.getmembers():
+                  target = (root / item.name).resolve()
+                  if not target.is_relative_to(root) or item.issym() or item.islnk():
+                      raise ValueError('Unsafe archive path')
+              archive.extractall(root, filter='data')
+          PY
+      - name: Download licensed offline face models
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, urllib.request, pathlib
+          source='https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/'
+          models=[
+            ('yunet.onnx','face_detection_yunet/face_detection_yunet_2023mar.onnx','8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4'),
+            ('sface.onnx','face_recognition_sface/face_recognition_sface_2021dec_int8.onnx','2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a')]
+          destination=pathlib.Path('app/src/main/assets')
+          destination.mkdir(parents=True,exist_ok=True)
+          for name,path,expected in models:
+              data=urllib.request.urlopen(source+path,timeout=90).read()
+              actual=hashlib.sha256(data).hexdigest()
+              if actual != expected: raise RuntimeError(f'Model checksum mismatch for {name}: {actual}')
+              (destination/name).write_bytes(data)
+          PY
+      - name: Run existing data-safety and merge tests
+        run: |
+          python3 tests/check_merge.py
+          mkdir -p /tmp/mt-tests
+          javac -d /tmp/mt-tests app/src/main/java/com/emily/mtphotos/FaceMatching.java tests/FaceMatchingTest.java
+          java -cp /tmp/mt-tests com.emily.mtphotos.FaceMatchingTest
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Assemble APK
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Upload downloadable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MT-Photos-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
